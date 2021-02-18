@@ -4,7 +4,7 @@
 # https://aka.ms/yaml
 
 trigger:
-- master
+- develop
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -14,13 +14,26 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
+      GIT_COMMIT=$(git rev-parse --short HEAD)
+      
+      echo "GIT_COMMIT: ${GIT_COMMIT}"
+      
+      #
+      # set env variable to allow next task to consume 
+      #
+      echo "##vso[task.setvariable variable=GIT_COMMIT]${GIT_COMMIT}"
+
+- task: Bash@3
+  inputs:
+    targetType: 'inline'
+    script: |
       dt=$(date '+%d/%m/%Y %H:%M:%S');
       echo "$dt"
+
 - task: NodeTool@0
   inputs:
     versionSpec: '12.x'
   displayName: 'Install Node.js'
-
 
 - task: Npm@1
   inputs:
@@ -31,7 +44,6 @@ steps:
 #    command: 'custom'
 #    customCommand: 'run test:u'
 #  displayName: 'Testing npm'  
-
 
 - task: PublishTestResults@2
   inputs:
@@ -50,11 +62,13 @@ steps:
     command: 'custom'
     customCommand: 'run build'
 
-
 - task: Docker@2
   inputs:
-    containerRegistry: 'turtlenetwork docker'
-    repository: 'turtlenetwork/data-service'
+    containerRegistry: 'polarity-acr'
+    repository: 'data-service'
     command: 'buildAndPush'
     Dockerfile: '**/Dockerfile'
     addPipelineData: false
+    tags: |
+      $(Build.SourceBranchName)
+      $(GIT_COMMIT)
